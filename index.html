@@ -60,6 +60,8 @@
     <button id="export">画像を保存</button>
     <button id="import">画像を読み込み</button>
     <input type="file" id="imageLoader" accept="image/*" style="display:none;">
+    <button id="copyColor">色をコピー</button>
+    <button id="pasteColor">色を貼り付け</button>
 </div>
 
 <canvas id="canvas" style="display:none;"></canvas>
@@ -75,9 +77,12 @@
     const importButton = document.getElementById('import');
     const imageLoader = document.getElementById('imageLoader');
     const canvas = document.getElementById('canvas');
+    const copyColorButton = document.getElementById('copyColor');
+    const pasteColorButton = document.getElementById('pasteColor');
 
     let currentColor = '#000000';
     let isEraserActive = false;
+    let copiedColor = null;  // コピーされた色
 
     // グリッド生成
     function createGrid(size) {
@@ -92,6 +97,9 @@
                 if (isEraserActive) {
                     cell.style.backgroundColor = 'rgba(0, 0, 0, 0)'; // 背景透明化
                     cell.classList.add('transparent');
+                } else if (copiedColor) {
+                    cell.style.backgroundColor = copiedColor; // コピーされた色で塗りつぶし
+                    cell.classList.remove('transparent');
                 } else {
                     cell.style.backgroundColor = currentColor;
                     cell.classList.remove('transparent');
@@ -102,6 +110,9 @@
                     if (isEraserActive) {
                         cell.style.backgroundColor = 'rgba(0, 0, 0, 0)';
                         cell.classList.add('transparent');
+                    } else if (copiedColor) {
+                        cell.style.backgroundColor = copiedColor;
+                        cell.classList.remove('transparent');
                     } else {
                         cell.style.backgroundColor = currentColor;
                         cell.classList.remove('transparent');
@@ -205,6 +216,27 @@
                 }
             };
             img.src = URL.createObjectURL(file);
+        }
+    });
+
+    // 色をコピー
+    copyColorButton.addEventListener('click', () => {
+        const selectedCell = document.querySelector('.cell:hover');
+        if (selectedCell) {
+            copiedColor = window.getComputedStyle(selectedCell).backgroundColor;
+            alert("色がコピーされました");
+        } else {
+            alert("色をコピーするセルを選択してください");
+        }
+    });
+
+    // 色を貼り付け
+    pasteColorButton.addEventListener('click', () => {
+        if (copiedColor) {
+            currentColor = copiedColor;
+            alert("コピーした色を貼り付けました");
+        } else {
+            alert("コピーした色がありません");
         }
     });
 </script>
