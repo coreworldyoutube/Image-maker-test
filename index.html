@@ -14,7 +14,7 @@
         .cell {
             width: 20px;
             height: 20px;
-            background-color: white;
+            background-color: transparent;
             border: 1px solid #ccc;
         }
         #color-picker {
@@ -24,6 +24,9 @@
             margin-top: 10px;
         }
         #tools {
+            margin-top: 10px;
+        }
+        #size-input {
             margin-top: 10px;
         }
     </style>
@@ -40,7 +43,15 @@
     <option value="blue">青</option>
     <option value="green">緑</option>
     <option value="yellow">黄色</option>
+    <option value="orange">オレンジ</option>
+    <option value="purple">紫</option>
+    <option value="pink">ピンク</option>
+    <option value="brown">茶色</option>
     <option value="white">白</option>
+    <option value="gray">灰色</option>
+    <option value="lime">ライム</option>
+    <option value="cyan">シアン</option>
+    <option value="magenta">マゼンタ</option>
 </select>
 
 <input type="file" id="upload" accept="image/*" />
@@ -49,11 +60,14 @@
     <button id="eraser">消しゴム</button>
 </div>
 
+<label for="size-input">保存サイズ (px):</label>
+<input type="number" id="size-input" value="320" min="16" step="16" />
+
 <button id="download">画像保存</button>
 
 <script>
     // グリッドサイズの設定
-    const gridSize = 16; // 16x16のグリッド
+    let gridSize = 16; // 16x16のグリッド
     const grid = document.getElementById('grid');
     const colorPicker = document.getElementById('color-picker');
     const eraserButton = document.getElementById('eraser');
@@ -70,8 +84,8 @@
     grid.addEventListener('click', (e) => {
         if (e.target.classList.contains('cell')) {
             if (isErasing) {
-                // 消しゴムがオンの場合、セルの背景を白に
-                e.target.style.backgroundColor = 'white';
+                // 消しゴムがオンの場合、セルの背景を透明に
+                e.target.style.backgroundColor = 'transparent';
             } else {
                 // 消しゴムがオフの場合、選択した色を塗る
                 const selectedColor = colorPicker.value;
@@ -123,7 +137,7 @@
                             const color = `rgb(${r}, ${g}, ${b})`;
                             cells[i].style.backgroundColor = color;
                         } else {
-                            cells[i].style.backgroundColor = 'white';
+                            cells[i].style.backgroundColor = 'transparent';
                         }
                     }
                 }
@@ -135,16 +149,18 @@
     // 画像保存処理
     document.getElementById('download').addEventListener('click', () => {
         const canvas = document.createElement('canvas');
-        canvas.width = gridSize * 20;
-        canvas.height = gridSize * 20;
+        const size = parseInt(document.getElementById('size-input').value);
+        canvas.width = size;
+        canvas.height = size;
         const ctx = canvas.getContext('2d');
 
         const cells = grid.getElementsByClassName('cell');
+        const scaleFactor = size / (gridSize * 20);  // 保存するサイズに合わせてスケーリング
         Array.from(cells).forEach((cell, i) => {
-            const x = (i % gridSize) * 20;
-            const y = Math.floor(i / gridSize) * 20;
-            ctx.fillStyle = cell.style.backgroundColor || 'white';
-            ctx.fillRect(x, y, 20, 20);
+            const x = (i % gridSize) * 20 * scaleFactor;
+            const y = Math.floor(i / gridSize) * 20 * scaleFactor;
+            ctx.fillStyle = cell.style.backgroundColor || 'transparent';
+            ctx.fillRect(x, y, 20 * scaleFactor, 20 * scaleFactor);
         });
 
         const link = document.createElement('a');
