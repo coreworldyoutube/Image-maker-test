@@ -1,245 +1,81 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>画像編集ツール</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        #editor {
-            display: grid;
-            gap: 1px;
-            margin: 20px;
-        }
-        .cell {
-            width: 20px;
-            height: 20px;
-            background-color: rgba(255, 255, 255, 1);
-            border: 1px solid #ddd;
-            box-sizing: border-box;
-        }
-        .cell.transparent {
-            background-color: rgba(0, 0, 0, 0); /* 透明 */
-        }
-        .cell:hover {
-            border: 1px solid #aaa;
-        }
-        #tools {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<h1>画像編集ツール</h1>
-
-<div id="editor"></div>
-
-<div id="tools">
-    <label>
-        グリッドサイズ:
-        <input type="number" id="gridSize" value="16" min="4" max="64">
-    </label>
-    <button id="updateGrid">更新</button>
-    <label>
-        <span>色:</span>
-        <input type="color" id="currentColor" value="#000000">
-    </label>
-    <button id="eraser">透明ペン</button>
-    <button id="clear">全消去</button>
-    <button id="export">画像を保存</button>
-    <button id="import">画像を読み込み</button>
-    <input type="file" id="imageLoader" accept="image/*" style="display:none;">
-    <button id="copyColor">色をコピー</button>
-    <button id="pasteColor">色を貼り付け</button>
-</div>
-
-<canvas id="canvas" style="display:none;"></canvas>
-
 <script>
-    const editor = document.getElementById('editor');
-    const gridSizeInput = document.getElementById('gridSize');
-    const updateGridButton = document.getElementById('updateGrid');
-    const currentColorInput = document.getElementById('currentColor');
-    const eraserButton = document.getElementById('eraser');
-    const clearButton = document.getElementById('clear');
-    const exportButton = document.getElementById('export');
-    const importButton = document.getElementById('import');
-    const imageLoader = document.getElementById('imageLoader');
-    const canvas = document.getElementById('canvas');
-    const copyColorButton = document.getElementById('copyColor');
-    const pasteColorButton = document.getElementById('pasteColor');
+    let gridSize = 16; // 初期のグリッドサイズ
+    let zoomLevel = 1; // ズームの初期レベル
+    const grid = document.getElementById('grid');
+    let isErasing = false; // 消しゴムのオン・オフ状態
+    let currentColor = { r: 0, g: 0, b: 0, a: 100 }; // 現在の色
+    let copiedColor = null; // コピーした色
 
-    let currentColor = '#000000';
-    let isEraserActive = false;
-    let copiedColor = null;  // コピーされた色
+    // RGBスライダーの変更に対応
+    document.getElementById('red-slider').addEventListener('input', updateColor);
+    document.getElementById('green-slider').addEventListener('input', updateColor);
+    document.getElementById('blue-slider').addEventListener('input', updateColor);
+    document.getElementById('transparency-slider').addEventListener('input', updateColor);
 
-    // グリッド生成
-    function createGrid(size) {
-        editor.innerHTML = ''; // 初期化
-        editor.style.gridTemplateColumns = `repeat(${size}, 20px)`;
-        editor.style.gridTemplateRows = `repeat(${size}, 20px)`;
+    function updateColor() {
+        currentColor.r = document.getElementById('red-slider').value;
+        currentColor.g = document.getElementById('green-slider').value;
+        currentColor.b = document.getElementById('blue-slider').value;
+        currentColor.a = document.getElementById('transparency-slider').value;
+    }
 
-        for (let i = 0; i < size * size; i++) {
+    // グリッドを作成
+    function createGrid(cols, rows) {
+        grid.innerHTML = ''; // グリッドをクリア
+        grid.style.gridTemplateColumns = `repeat(${cols}, 20px)`;
+        grid.style.gridTemplateRows = `repeat(${rows}, 20px)`;
+
+        for (let i = 0; i < cols * rows; i++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
-            cell.addEventListener('mousedown', (e) => {
-                if (isEraserActive) {
-                    cell.style.backgroundColor = 'rgba(0, 0, 0, 0)'; // 背景透明化
-                    cell.classList.add('transparent');
-                } else if (copiedColor) {
-                    cell.style.backgroundColor = copiedColor; // コピーされた色で塗りつぶし
-                    cell.classList.remove('transparent');
-                } else {
-                    cell.style.backgroundColor = currentColor;
-                    cell.classList.remove('transparent');
-                }
-            });
-            cell.addEventListener('mouseover', (e) => {
-                if (e.buttons === 1) {
-                    if (isEraserActive) {
-                        cell.style.backgroundColor = 'rgba(0, 0, 0, 0)';
-                        cell.classList.add('transparent');
-                    } else if (copiedColor) {
-                        cell.style.backgroundColor = copiedColor;
-                        cell.classList.remove('transparent');
-                    } else {
-                        cell.style.backgroundColor = currentColor;
-                        cell.classList.remove('transparent');
-                    }
-                }
-            });
-            editor.appendChild(cell);
+            grid.appendChild(cell);
         }
     }
 
-    // 初期化
-    createGrid(parseInt(gridSizeInput.value));
-
-    // グリッドサイズ変更
-    updateGridButton.addEventListener('click', () => {
-        const size = parseInt(gridSizeInput.value);
-        if (size >= 4 && size <= 64) {
-            createGrid(size);
-        } else {
-            alert("グリッドサイズは4から64の間で指定してください。");
-        }
-    });
-
-    // 色変更
-    currentColorInput.addEventListener('input', (e) => {
-        currentColor = e.target.value;
-        isEraserActive = false; // 色変更時に消しゴムを無効化
-    });
-
-    // 透明ペン切り替え
-    eraserButton.addEventListener('click', () => {
-        isEraserActive = true;
-    });
-
-    // 全消去
-    clearButton.addEventListener('click', () => {
-        document.querySelectorAll('.cell').forEach(cell => {
-            cell.style.backgroundColor = 'rgba(255, 255, 255, 1)';
-            cell.classList.remove('transparent');
-        });
-    });
-
-    // 画像を保存
-    exportButton.addEventListener('click', () => {
-        const size = parseInt(gridSizeInput.value);
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-
-        const cells = document.querySelectorAll('.cell');
-        cells.forEach((cell, index) => {
-            const x = index % size;
-            const y = Math.floor(index / size);
-            const bgColor = window.getComputedStyle(cell).backgroundColor;
-
-            if (cell.classList.contains('transparent')) {
-                ctx.clearRect(x, y, 1, 1); // 透明
+    // ドットを塗る処理
+    grid.addEventListener('click', (e) => {
+        if (e.target.classList.contains('cell')) {
+            if (isErasing) {
+                // 消しゴムがオンの場合、セルの背景を透明に
+                e.target.style.backgroundColor = 'transparent';
+            } else if (copiedColor) {
+                // 色コピーされた色を貼り付ける
+                e.target.style.backgroundColor = copiedColor;
             } else {
-                ctx.fillStyle = bgColor;
-                ctx.fillRect(x, y, 1, 1);
+                // 選択された色を塗る
+                const color = `rgba(${currentColor.r}, ${currentColor.g}, ${currentColor.b}, ${currentColor.a / 100})`;
+                e.target.style.backgroundColor = color;
             }
-        });
-
-        const link = document.createElement('a');
-        link.download = 'grid_image.png';
-        link.href = canvas.toDataURL();
-        link.click();
-    });
-
-    // 画像を読み込み
-    importButton.addEventListener('click', () => {
-        imageLoader.click();
-    });
-
-    imageLoader.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const img = new Image();
-            const size = parseInt(gridSizeInput.value);
-            img.onload = () => {
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, size, size);
-
-                const imageData = ctx.getImageData(0, 0, size, size);
-                const cells = document.querySelectorAll('.cell');
-                for (let i = 0; i < cells.length; i++) {
-                    const r = imageData.data[i * 4];
-                    const g = imageData.data[i * 4 + 1];
-                    const b = imageData.data[i * 4 + 2];
-                    const a = imageData.data[i * 4 + 3] / 255;
-
-                    if (a === 0) {
-                        cells[i].style.backgroundColor = 'rgba(0, 0, 0, 0)';
-                        cells[i].classList.add('transparent');
-                    } else {
-                        cells[i].style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;
-                        cells[i].classList.remove('transparent');
-                    }
-                }
-            };
-            img.src = URL.createObjectURL(file);
         }
     });
 
-    // 色をコピー
-    copyColorButton.addEventListener('click', () => {
-        const selectedCell = document.querySelector('.cell:hover');
+    // 色コピー機能
+    document.getElementById('copy-color').addEventListener('click', () => {
+        const selectedCell = document.querySelector('.selected');
         if (selectedCell) {
-            copiedColor = window.getComputedStyle(selectedCell).backgroundColor;
-            alert("色がコピーされました");
-        } else {
-            alert("色をコピーするセルを選択してください");
+            copiedColor = selectedCell.style.backgroundColor; // 背景色をコピー
         }
     });
 
-    // 色を貼り付け
-    pasteColorButton.addEventListener('click', () => {
-        if (copiedColor) {
-            currentColor = copiedColor;
-            alert("コピーした色を貼り付けました");
-        } else {
-            alert("コピーした色がありません");
-        }
+    // 消しゴム機能のトグル
+    document.getElementById('eraser').addEventListener('click', () => {
+        isErasing = !isErasing;
+        document.getElementById('eraser').style.backgroundColor = isErasing ? 'lightgray' : '';
     });
+
+    // ズームスライダーの変更に対応
+    document.getElementById('zoom-slider').addEventListener('input', (e) => {
+        zoomLevel = parseFloat(e.target.value);
+        updateGridSize();
+    });
+
+    // グリッドサイズの更新
+    function updateGridSize() {
+        const cols = Math.floor(grid.offsetWidth / (20 * zoomLevel));
+        const rows = Math.floor(grid.offsetHeight / (20 * zoomLevel));
+        createGrid(cols, rows);
+    }
+
+    // 初期化
+    updateGridSize();
 </script>
-
-</body>
-</html>
