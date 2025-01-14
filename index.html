@@ -5,11 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ドット絵エディター</title>
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
         .grid {
             display: grid;
-            grid-template-columns: repeat(16, 20px);
-            grid-template-rows: repeat(16, 20px);
             gap: 1px;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
         .cell {
             width: 20px;
@@ -17,10 +29,7 @@
             background-color: transparent;
             border: 1px solid #ccc;
         }
-        #color-picker {
-            margin-top: 10px;
-        }
-        #upload {
+        #color-picker, #zoom-slider, #transparency-slider {
             margin-top: 10px;
         }
         #tools {
@@ -29,55 +38,72 @@
         #size-input {
             margin-top: 10px;
         }
+        #download {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
 
 <h1>ドット絵エディター</h1>
 
-<div id="grid" class="grid"></div>
+<div class="container">
+    <div id="grid" class="grid"></div>
+</div>
 
-<select id="color-picker">
-    <option value="black">黒</option>
-    <option value="red">赤</option>
-    <option value="blue">青</option>
-    <option value="green">緑</option>
-    <option value="yellow">黄色</option>
-    <option value="orange">オレンジ</option>
-    <option value="purple">紫</option>
-    <option value="pink">ピンク</option>
-    <option value="brown">茶色</option>
-    <option value="white">白</option>
-    <option value="gray">灰色</option>
-    <option value="lime">ライム</option>
-    <option value="cyan">シアン</option>
-    <option value="magenta">マゼンタ</option>
-</select>
+<!-- RGB選択 -->
+<div>
+    <label>赤: <input type="range" id="red-slider" min="0" max="255" value="0"></label>
+    <label>緑: <input type="range" id="green-slider" min="0" max="255" value="0"></label>
+    <label>青: <input type="range" id="blue-slider" min="0" max="255" value="0"></label>
+    <label>透過性: <input type="range" id="transparency-slider" min="0" max="100" value="100"></label>
+</div>
+
+<!-- ズームとツール -->
+<div id="tools">
+    <button id="eraser">消しゴム</button>
+    <label for="zoom-slider">ズーム:</label>
+    <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1">
+    <label for="size-input">保存サイズ (px):</label>
+    <input type="number" id="size-input" value="320" min="16" step="16">
+    <button id="download">画像保存</button>
+</div>
 
 <input type="file" id="upload" accept="image/*" />
 
-<div id="tools">
-    <button id="eraser">消しゴム</button>
-</div>
-
-<label for="size-input">保存サイズ (px):</label>
-<input type="number" id="size-input" value="320" min="16" step="16" />
-
-<button id="download">画像保存</button>
-
 <script>
-    // グリッドサイズの設定
-    let gridSize = 16; // 16x16のグリッド
+    let gridSize = 16; // 初期のグリッドサイズ
+    let zoomLevel = 1; // ズームの初期レベル
     const grid = document.getElementById('grid');
     const colorPicker = document.getElementById('color-picker');
     const eraserButton = document.getElementById('eraser');
-    let isErasing = false; // 消しゴムがオンかどうかを追跡
+    let isErasing = false; // 消しゴムのオン・オフ状態
+    let currentColor = { r: 0, g: 0, b: 0, a: 100 }; // 現在の色
+
+    // RGBスライダーの変更に対応
+    document.getElementById('red-slider').addEventListener('input', updateColor);
+    document.getElementById('green-slider').addEventListener('input', updateColor);
+    document.getElementById('blue-slider').addEventListener('input', updateColor);
+    document.getElementById('transparency-slider').addEventListener('input', updateColor);
+
+    function updateColor() {
+        currentColor.r = document.getElementById('red-slider').value;
+        currentColor.g = document.getElementById('green-slider').value;
+        currentColor.b = document.getElementById('blue-slider').value;
+        currentColor.a = document.getElementById('transparency-slider').value;
+    }
 
     // グリッドを作成
-    for (let i = 0; i < gridSize * gridSize; i++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        grid.appendChild(cell);
+    function createGrid(cols, rows) {
+        grid.innerHTML = ''; // グリッドをクリア
+        grid.style.gridTemplateColumns = `repeat(${cols}, 20px)`;
+        grid.style.gridTemplateRows = `repeat(${rows}, 20px)`;
+
+        for (let i = 0; i < cols * rows; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            grid.appendChild(cell);
+        }
     }
 
     // ドットを塗る処理
@@ -87,17 +113,52 @@
                 // 消しゴムがオンの場合、セルの背景を透明に
                 e.target.style.backgroundColor = 'transparent';
             } else {
-                // 消しゴムがオフの場合、選択した色を塗る
-                const selectedColor = colorPicker.value;
-                e.target.style.backgroundColor = selectedColor;
+                // 選択された色を塗る
+                const color = `rgba(${currentColor.r}, ${currentColor.g}, ${currentColor.b}, ${currentColor.a / 100})`;
+                e.target.style.backgroundColor = color;
             }
         }
     });
 
-    // 消しゴムのトグル
+    // 消しゴム機能のトグル
     eraserButton.addEventListener('click', () => {
         isErasing = !isErasing;
-        eraserButton.style.backgroundColor = isErasing ? 'lightgray' : ''; // 消しゴム選択時に色を変える
+        eraserButton.style.backgroundColor = isErasing ? 'lightgray' : '';
+    });
+
+    // ズームスライダーの変更に対応
+    document.getElementById('zoom-slider').addEventListener('input', (e) => {
+        zoomLevel = parseFloat(e.target.value);
+        updateGridSize();
+    });
+
+    // グリッドサイズの更新
+    function updateGridSize() {
+        const cols = Math.floor(grid.offsetWidth / (20 * zoomLevel));
+        const rows = Math.floor(grid.offsetHeight / (20 * zoomLevel));
+        createGrid(cols, rows);
+    }
+
+    // グリッドを移動（パン）するためのマウスドラッグイベント
+    let isDragging = false;
+    let startX, startY;
+
+    grid.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+    });
+
+    grid.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            grid.style.transform = `translate(${dx}px, ${dy}px)`;
+        }
+    });
+
+    grid.addEventListener('mouseup', () => {
+        isDragging = false;
     });
 
     // 画像読み込み処理
@@ -106,25 +167,26 @@
         if (file) {
             const img = new Image();
             img.onload = () => {
-                // 画像のサイズを16の倍数に調整
                 const width = Math.floor(img.width / 16) * 16;
                 const height = Math.floor(img.height / 16) * 16;
                 img.width = width;
                 img.height = height;
 
-                // 画像をキャンバスに描画
+                const cols = width / (20 * zoomLevel);
+                const rows = height / (20 * zoomLevel);
+                createGrid(cols, rows);
+
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 canvas.width = width;
                 canvas.height = height;
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // キャンバスのピクセルデータを取得し、グリッドに反映
                 const imageData = ctx.getImageData(0, 0, width, height);
                 const cells = grid.getElementsByClassName('cell');
-                for (let i = 0; i < gridSize * gridSize; i++) {
-                    const row = Math.floor(i / gridSize);
-                    const col = i % gridSize;
+                for (let i = 0; i < cols * rows; i++) {
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
                     const pixelIndex = (row * width + col) * 4;
 
                     if (pixelIndex < imageData.data.length) {
@@ -134,7 +196,7 @@
                         const a = imageData.data[pixelIndex + 3];
 
                         if (a > 0) {
-                            const color = `rgb(${r}, ${g}, ${b})`;
+                            const color = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
                             cells[i].style.backgroundColor = color;
                         } else {
                             cells[i].style.backgroundColor = 'transparent';
@@ -155,7 +217,7 @@
         const ctx = canvas.getContext('2d');
 
         const cells = grid.getElementsByClassName('cell');
-        const scaleFactor = size / (gridSize * 20);  // 保存するサイズに合わせてスケーリング
+        const scaleFactor = size / (gridSize * 20 * zoomLevel);  
         Array.from(cells).forEach((cell, i) => {
             const x = (i % gridSize) * 20 * scaleFactor;
             const y = Math.floor(i / gridSize) * 20 * scaleFactor;
