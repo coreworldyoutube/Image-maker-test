@@ -3,96 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ドット絵エディター</title>
+    <title>画像編集ツール</title>
     <style>
         body {
+            font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0;
-            overflow: hidden;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .container {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            overflow: hidden;
-        }
-        .grid {
+        #editor {
             display: grid;
             gap: 1px;
-            position: absolute;
-            top: 0;
-            left: 0;
+            margin: 20px;
         }
         .cell {
             width: 20px;
             height: 20px;
-            background-color: transparent;
-            border: 1px solid #ccc;
-            cursor: pointer;
+            background-color: white;
+            border: 1px solid #ddd;
+        }
+        .cell:hover {
+            border: 1px solid #aaa;
         }
         #tools {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
             margin-top: 10px;
+        }
+        .color-picker {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #ddd;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-<h1>ドット絵エディター</h1>
-<div class="container">
-    <div id="grid" class="grid"></div>
+<h1>画像編集ツール</h1>
+
+<div id="editor"></div>
+
+<div id="tools">
+    <label>
+        グリッドサイズ:
+        <input type="number" id="gridSize" value="16" min="4" max="64">
+    </label>
+    <button id="updateGrid">更新</button>
+    <div id="colorPickerContainer">
+        <span>色:</span>
+        <input type="color" id="currentColor" value="#000000">
+    </div>
+    <button id="clear">全消去</button>
+    <button id="export">画像を保存</button>
 </div>
 
-<!-- ツール -->
-<div id="tools">
-    <button id="eraser">消しゴム</button>
-    <label for="zoom-slider">ズーム:</label>
-    <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1">
-</div>
+<canvas id="canvas" style="display:none;"></canvas>
 
 <script>
-    let gridSize = 16; // 初期のグリッドサイズ
-    let zoomLevel = 1; // ズームの初期レベル
-    const grid = document.getElementById('grid');
-    let isErasing = false; // 消しゴムのオン・オフ状態
+    const editor = document.getElementById('editor');
+    const gridSizeInput = document.getElementById('gridSize');
+    const updateGridButton = document.getElementById('updateGrid');
+    const currentColorInput = document.getElementById('currentColor');
+    const clearButton = document.getElementById('clear');
+    const exportButton = document.getElementById('export');
+    const canvas = document.getElementById('canvas');
 
-    // グリッドを作成
+    let currentColor = '#000000';
+
+    // グリッド生成
     function createGrid(size) {
-        grid.innerHTML = ''; // 既存のグリッドをクリア
-        grid.style.gridTemplateColumns = `repeat(${size}, 20px)`;
-        grid.style.gridTemplateRows = `repeat(${size}, 20px)`;
+        editor.innerHTML = ''; // 初期化
+        editor.style.gridTemplateColumns = `repeat(${size}, 20px)`;
+        editor.style.gridTemplateRows = `repeat(${size}, 20px)`;
 
         for (let i = 0; i < size * size; i++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
-            grid.appendChild(cell);
+            cell.addEventListener('mousedown', () => cell.style.backgroundColor = currentColor);
+            cell.addEventListener('mouseover', (e) => {
+                if (e.buttons === 1) cell.style.backgroundColor = currentColor;
+            });
+            editor.appendChild(cell);
         }
     }
 
     // 初期化
-    createGrid(gridSize);
+    createGrid(parseInt(gridSizeInput.value));
 
-    // 消しゴム機能
-    document.getElementById('eraser').addEventListener('click', () => {
-        isErasing = !isErasing;
-        document.getElementById('eraser').style.backgroundColor = isErasing ? 'lightgray' : '';
-    });
-
-    // グリッド上でクリック処理
-    grid.addEventListener('click', (e) => {
-        if (e.target.classList.contains('cell')) {
-            if (isErasing) {
-                e.target.style.backgroundColor = 'transparent'; // 消しゴムモード
-            } else {
-                e.target.style.backgroundColor = 'black'; // 黒で塗る
-            }
+    // グリッドサイズ変更
+    updateGridButton.addEventListener('click', () => {
+        const size = parseInt(gridSizeInput.value);
+        if (size >= 4 && size <= 64) {
+            createGrid(size);
+        } else {
+            alert("グリッドサイズは4から64の間で指定してください。");
         }
     });
 
-    // ズームスライダー
-    document.getElementById('zoom-slider').addEventListener('input', (e) => {
-        zoomLevel = parseFloat(e.target.value);
-        grid.style.transform = `scale(${zoomLevel})`;
-        grid.style.transformOrigin = '0 0';
+    // 色変更
+    currentColorInput.addEventListener('input', (e) => {
+        currentColor = e.target.value;
+    });
+
+    // 全消去
+    clearButton.addEventListener('click', () => {
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.style.backgroundColor = 'white';
+        });
+    });
+
+    // 画像を保存
+    exportButton.addEventListener('click', () => {
+        const size = parseInt(gridSizeInput.value);
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        const cells = document.querySelectorAll('.cell');
+        cells.forEach((cell, index) => {
+            const x = index % size;
+            const y = Math.floor(index / size);
+            const color = window.getComputedStyle(cell).backgroundColor;
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, 1, 1);
+        });
+
+        const link = document.createElement('a');
+        link.download = 'grid_image.png';
+        link.href = canvas.toDataURL();
+        link.click();
     });
 </script>
 
