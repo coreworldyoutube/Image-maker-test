@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ドット絵エディター</title>
+    <style>
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(16, 20px);
+            grid-template-rows: repeat(16, 20px);
+            gap: 1px;
+        }
+        .cell {
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border: 1px solid #ccc;
+        }
+        #color-picker {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>ドット絵エディター</h1>
+
+<div id="grid" class="grid"></div>
+
+<select id="color-picker">
+    <option value="black">黒</option>
+    <option value="red">赤</option>
+    <option value="blue">青</option>
+    <option value="green">緑</option>
+    <option value="yellow">黄色</option>
+    <option value="white">白</option>
+</select>
+
+<button id="download">画像保存</button>
+
+<script>
+    // グリッドの作成
+    const grid = document.getElementById('grid');
+    const size = 16;  // グリッドサイズ（16x16）
+
+    for (let i = 0; i < size * size; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        grid.appendChild(cell);
+    }
+
+    // 色選択
+    const colorPicker = document.getElementById('color-picker');
+
+    // ドットを塗る処理
+    grid.addEventListener('click', (e) => {
+        if (e.target.classList.contains('cell')) {
+            const selectedColor = colorPicker.value;
+            e.target.style.backgroundColor = selectedColor;
+        }
+    });
+
+    // 画像保存
+    document.getElementById('download').addEventListener('click', () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size * 20;
+        canvas.height = size * 20;
+        const ctx = canvas.getContext('2d');
+
+        const cells = grid.getElementsByClassName('cell');
+        Array.from(cells).forEach((cell, i) => {
+            const x = (i % size) * 20;
+            const y = Math.floor(i / size) * 20;
+            ctx.fillStyle = cell.style.backgroundColor || 'white';
+            ctx.fillRect(x, y, 20, 20);
+        });
+
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL();
+        link.download = 'dot-art.png';
+        link.click();
+    });
+</script>
+
+</body>
+</html>
