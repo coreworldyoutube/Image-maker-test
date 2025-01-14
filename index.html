@@ -30,16 +30,7 @@
             border: 1px solid #ccc;
             cursor: pointer;
         }
-        #color-picker, #zoom-slider, #transparency-slider {
-            margin-top: 10px;
-        }
         #tools {
-            margin-top: 10px;
-        }
-        #size-input {
-            margin-top: 10px;
-        }
-        #download {
             margin-top: 10px;
         }
     </style>
@@ -47,202 +38,62 @@
 <body>
 
 <h1>ドット絵エディター</h1>
-
 <div class="container">
     <div id="grid" class="grid"></div>
 </div>
 
-<!-- RGB選択 -->
-<div>
-    <label>赤: <input type="range" id="red-slider" min="0" max="255" value="0"></label>
-    <label>緑: <input type="range" id="green-slider" min="0" max="255" value="0"></label>
-    <label>青: <input type="range" id="blue-slider" min="0" max="255" value="0"></label>
-    <label>透過性: <input type="range" id="transparency-slider" min="0" max="100" value="100"></label>
-</div>
-
-<!-- 色調整 -->
-<div>
-    <label>色相: <input type="range" id="hue-slider" min="-180" max="180" value="0"></label>
-    <label>明るさ: <input type="range" id="brightness-slider" min="0" max="200" value="100"></label>
-    <label>コントラスト: <input type="range" id="contrast-slider" min="0" max="200" value="100"></label>
-</div>
-
-<!-- ズームとツール -->
+<!-- ツール -->
 <div id="tools">
     <button id="eraser">消しゴム</button>
     <label for="zoom-slider">ズーム:</label>
     <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1">
-    <label for="size-input">保存サイズ (px):</label>
-    <input type="number" id="size-input" value="320" min="16" step="16">
-    <button id="download">画像保存</button>
-    <button id="copy-color">色コピー</button>
 </div>
-
-<input type="file" id="upload" accept="image/*" />
 
 <script>
     let gridSize = 16; // 初期のグリッドサイズ
     let zoomLevel = 1; // ズームの初期レベル
     const grid = document.getElementById('grid');
     let isErasing = false; // 消しゴムのオン・オフ状態
-    let currentColor = { r: 0, g: 0, b: 0, a: 100 }; // 現在の色
-    let copiedColor = null; // コピーした色
-
-    // RGBスライダーの変更に対応
-    document.getElementById('red-slider').addEventListener('input', updateColor);
-    document.getElementById('green-slider').addEventListener('input', updateColor);
-    document.getElementById('blue-slider').addEventListener('input', updateColor);
-    document.getElementById('transparency-slider').addEventListener('input', updateColor);
-
-    function updateColor() {
-        currentColor.r = document.getElementById('red-slider').value;
-        currentColor.g = document.getElementById('green-slider').value;
-        currentColor.b = document.getElementById('blue-slider').value;
-        currentColor.a = document.getElementById('transparency-slider').value;
-    }
-
-    // 色相・明るさ・コントラストスライダーの変更に対応
-    document.getElementById('hue-slider').addEventListener('input', applyFilters);
-    document.getElementById('brightness-slider').addEventListener('input', applyFilters);
-    document.getElementById('contrast-slider').addEventListener('input', applyFilters);
-
-    function applyFilters() {
-        const hue = document.getElementById('hue-slider').value;
-        const brightness = document.getElementById('brightness-slider').value;
-        const contrast = document.getElementById('contrast-slider').value;
-        const filter = `hue-rotate(${hue}deg) brightness(${brightness}%) contrast(${contrast}%)`;
-        grid.style.filter = filter;
-    }
 
     // グリッドを作成
-    function createGrid(cols, rows) {
-        grid.innerHTML = ''; // グリッドをクリア
-        grid.style.gridTemplateColumns = `repeat(${cols}, 20px)`;
-        grid.style.gridTemplateRows = `repeat(${rows}, 20px)`;
+    function createGrid(size) {
+        grid.innerHTML = ''; // 既存のグリッドをクリア
+        grid.style.gridTemplateColumns = `repeat(${size}, 20px)`;
+        grid.style.gridTemplateRows = `repeat(${size}, 20px)`;
 
-        for (let i = 0; i < cols * rows; i++) {
+        for (let i = 0; i < size * size; i++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
             grid.appendChild(cell);
         }
     }
 
-    // ドットを塗る処理
-    grid.addEventListener('click', (e) => {
-        if (e.target.classList.contains('cell')) {
-            if (isErasing) {
-                // 消しゴムがオンの場合、セルの背景を透明に
-                e.target.style.backgroundColor = 'transparent';
-            } else if (copiedColor) {
-                // 色コピーされた色を貼り付ける
-                e.target.style.backgroundColor = copiedColor;
-            } else {
-                // 選択された色を塗る
-                const color = `rgba(${currentColor.r}, ${currentColor.g}, ${currentColor.b}, ${currentColor.a / 100})`;
-                e.target.style.backgroundColor = color;
-            }
-        }
-    });
+    // 初期化
+    createGrid(gridSize);
 
-    // 消しゴム機能のトグル
+    // 消しゴム機能
     document.getElementById('eraser').addEventListener('click', () => {
         isErasing = !isErasing;
         document.getElementById('eraser').style.backgroundColor = isErasing ? 'lightgray' : '';
     });
 
-    // 色コピー機能
-    document.getElementById('copy-color').addEventListener('click', () => {
-        const selectedCell = document.querySelector('.selected');
-        if (selectedCell) {
-            copiedColor = selectedCell.style.backgroundColor;
+    // グリッド上でクリック処理
+    grid.addEventListener('click', (e) => {
+        if (e.target.classList.contains('cell')) {
+            if (isErasing) {
+                e.target.style.backgroundColor = 'transparent'; // 消しゴムモード
+            } else {
+                e.target.style.backgroundColor = 'black'; // 黒で塗る
+            }
         }
     });
 
-    // ズームスライダーの変更に対応
+    // ズームスライダー
     document.getElementById('zoom-slider').addEventListener('input', (e) => {
         zoomLevel = parseFloat(e.target.value);
-        updateGridSize();
+        grid.style.transform = `scale(${zoomLevel})`;
+        grid.style.transformOrigin = '0 0';
     });
-
-    // グリッドサイズの更新
-    function updateGridSize() {
-        const cols = Math.floor(grid.offsetWidth / (20 * zoomLevel));
-        const rows = Math.floor(grid.offsetHeight / (20 * zoomLevel));
-        createGrid(cols, rows);
-    }
-
-    // 画像読み込み処理
-    document.getElementById('upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const img = new Image();
-            img.onload = () => {
-                const width = Math.floor(img.width / 16) * 16;
-                const height = Math.floor(img.height / 16) * 16;
-                img.width = width;
-                img.height = height;
-
-                const cols = width / (20 * zoomLevel);
-                const rows = height / (20 * zoomLevel);
-                createGrid(cols, rows);
-
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = width;
-                canvas.height = height;
-                ctx.drawImage(img, 0, 0, width, height);
-
-                const imageData = ctx.getImageData(0, 0, width, height);
-                const cells = grid.getElementsByClassName('cell');
-                for (let i = 0; i < cols * rows; i++) {
-                    const row = Math.floor(i / cols);
-                    const col = i % cols;
-                    const pixelIndex = (row * width + col) * 4;
-
-                    if (pixelIndex < imageData.data.length) {
-                        const r = imageData.data[pixelIndex];
-                        const g = imageData.data[pixelIndex + 1];
-                        const b = imageData.data[pixelIndex + 2];
-                        const a = imageData.data[pixelIndex + 3];
-
-                        if (a > 0) {
-                            const color = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-                            cells[i].style.backgroundColor = color;
-                        }
-                    }
-                }
-            };
-            img.src = URL.createObjectURL(file);
-        }
-    });
-
-    // ダウンロード処理
-    document.getElementById('download').addEventListener('click', () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const cols = grid.childElementCount / Math.floor(grid.offsetWidth / (20 * zoomLevel));
-        const rows = grid.childElementCount / cols;
-        canvas.width = cols * 20;
-        canvas.height = rows * 20;
-
-        for (let i = 0; i < cols * rows; i++) {
-            const cell = grid.children[i];
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            const color = cell.style.backgroundColor;
-
-            ctx.fillStyle = color || 'transparent';
-            ctx.fillRect(col * 20, row * 20, 20, 20);
-        }
-
-        const link = document.createElement('a');
-        link.href = canvas.toDataURL();
-        link.download = 'dot_art.png';
-        link.click();
-    });
-
-    // 初期化
-    updateGridSize();
 </script>
 
 </body>
